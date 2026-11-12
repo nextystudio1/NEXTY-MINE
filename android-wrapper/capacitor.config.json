@@ -1,0 +1,13 @@
+{
+  "appId": "com.nextystudio.nextymine",
+  "appName": "NEXTY MINE",
+  "webDir": "www",
+  "server": {
+    "url": "https://nextystudio1.github.io/NEXTY-MINE/",
+    "cleartext": false,
+    "allowNavigation": [
+      "nextystudio1.github.io",
+      "osdudsxjzcrgopaslhcz.supabase.co"
+    ]
+  }
+}
