@@ -1,4 +1,5 @@
 name: Build NEXTY MINE Android APK
+# Rebuild release APK with the latest web app changes
 
 on:
   workflow_dispatch:
