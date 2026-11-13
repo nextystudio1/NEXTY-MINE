@@ -139,10 +139,12 @@ gold:'<path class="blade" fill="url(#bladeMetal-gold)" d="M9 43 Q25 8 59 17 L111
 platinum:'<path class="blade" fill="url(#bladeMetal-platinum)" d="M8 45 Q18 13 49 13 Q83 11 112 39 L98 49 Q76 32 56 38 Q34 44 18 68Z"/><path class="accent" d="M23 39 Q44 17 68 23 L91 35"/>',
 mythic:'<path class="blade" fill="url(#bladeMetal-mythic)" d="M8 47 Q17 8 53 13 L66 5 L73 21 Q96 22 113 41 L96 52 Q75 37 57 42 L29 70 L12 59Z"/><path class="accent" d="M22 40 Q42 16 63 23 L82 30"/>'
 };
-const shape=(Object.values(bladeShapes)[(Math.max(1,Number(variant)||1)-1)%Object.keys(bladeShapes).length]||bladeShapes.starter).replace(/bladeMetal-[a-z]+/g,'bladeMetal-'+id);
+const v=Math.max(1,Number(variant)||1),rawShape=(Object.values(bladeShapes)[(v-1)%Object.keys(bladeShapes).length]||bladeShapes.starter).replace(/bladeMetal-[a-z]+/g,'bladeMetal-'+id),bladeTilt=((v*7)%23)-11;
+const shape='<g transform="rotate('+bladeTilt+' 60 43)">'+rawShape+'</g>';
 const gemShapes=['<path class="gem" fill="url(#core-'+id+')" d="M62 31 L75 43 L62 56 L49 43Z"/>','<circle class="gem" cx="62" cy="43" r="12"/>','<path class="gem" d="M62 28 L68 38 L80 43 L68 49 L62 60 L56 49 L44 43 L56 38Z"/>'];
-const gemShape=gemShapes[(Math.max(1,Number(variant)||1)-1)%gemShapes.length];
-const ornament=Number(variant)%4===0?'<path class="accent" d="M28 57 L38 67 L48 57 M78 56 L88 66 L98 56"/>':Number(variant)%4===1?'<circle class="gem" cx="29" cy="55" r="3"/><circle class="gem" cx="95" cy="53" r="3"/>':Number(variant)%4===2?'<path class="rune" d="M24 58 L34 72 L44 58 M82 56 L92 70 L102 56"/>':'<path class="accent" d="M22 50 Q34 35 46 42 M80 40 Q94 33 104 48"/>;
+const gemScale=(0.76+((v*5)%17)*0.025).toFixed(3),gemShape='<g transform="translate(62 43) scale('+gemScale+') translate(-62 -43)">'+gemShapes[(v-1)%gemShapes.length]+'</g>';
+const ornaments=['<path class="accent" d="M28 57 L38 67 L48 57 M78 56 L88 66 L98 56"/>','<circle class="gem" cx="29" cy="55" r="3"/><circle class="gem" cx="95" cy="53" r="3"/>','<path class="rune" d="M24 58 L34 72 L44 58 M82 56 L92 70 L102 56"/>','<path class="accent" d="M22 50 Q34 35 46 42 M80 40 Q94 33 104 48"/>','<path class="accent" d="M29 32 L39 42 L29 52 L19 42Z M91 32 L101 42 L91 52 L81 42Z"/>','<circle class="gem" cx="62" cy="19" r="4"/><path class="rune" d="M30 60 L40 70 M84 70 L94 60"/>','<path class="rune" d="M20 42 L32 32 L44 42 L32 52Z M76 42 L88 32 L100 42 L88 52Z"/>'];
+const ornament=ornaments[(v-1)%ornaments.length];
 return `<svg class="weapon-svg" viewBox="0 0 120 140" role="img" aria-label="Pickaxe skin ${id}">
 <defs>
 <linearGradient id="bladeMetal-${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--blade-a)"/><stop offset=".48" stop-color="var(--skin-glow)"/><stop offset="1" stop-color="var(--blade-b)"/></linearGradient>
