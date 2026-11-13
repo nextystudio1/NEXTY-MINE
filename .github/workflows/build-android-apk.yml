@@ -34,6 +34,21 @@ jobs:
       - name: Generate Android project
         run: npx cap add android
 
+      - name: Configure AdMob application ID
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          source = manifest.read_text()
+          meta = '<meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-7822338306225083~4092687938" />'
+          if "com.google.android.gms.ads.APPLICATION_ID" not in source:
+              source, count = re.subn(r'(<application\\b[^>]*>)', r'\\1\\n        ' + meta, source, count=1)
+              if count != 1:
+                  raise SystemExit("Could not insert AdMob App ID into AndroidManifest.xml")
+              manifest.write_text(source)
+          PY
+
       - name: Generate Android app icons
         run: npx --yes @capacitor/assets@3.0.5 generate --android --assetPath resources
 
