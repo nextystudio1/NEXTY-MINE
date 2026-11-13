@@ -107,7 +107,7 @@ sb.auth.onAuthStateChange((_event,session)=>{if(session&&(!user||user.id!==sessi
 function buildNav(){const items=role==='admin'?[['dashboard','Dashboard'],['players','Pemain'],['packages','Paket'],['payments','Pembayaran'],['gold-exchange','Permintaan Tukar Gold'],['mining','Aktivitas Mining'],['ledger','Ledger Gold'],['audit','Audit Log']]:[['home','Beranda'],['mine','Mining'],['bonus','Bonus Gold'],['packages','Paket'],['skins','Skin & Pickaxe'],['wallet','Saldo & Riwayat'],['goldrp','Gold Exchange'],['profile','Profil']];$('nav').innerHTML=items.map(([id,label])=>`<button data-page="${id}" class="${page===id?'active':''}">${label}</button>`).join('');$('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>{page=b.dataset.page;loadPage()})}
 async function loadPage(){buildNav();$('main').innerHTML='<div class="card empty">Memuat data…</div>';if(role==='admin'){await loadAdmin();renderAdmin()}else{await loadPlayer();renderPlayer()}}
 async function loadPlayer(){
- const [profile,wallet,packages,subs,ledger,mining,payments,exchanges]=await Promise.all([
+ const [profile,wallet,packages,subs,ledger,mining,payments,exchanges,pickaxes,pickaxeCatalog,pickaxeTiers]=await Promise.all([
  sb.from('nexty_profiles').select('*').eq('user_id',user.id).maybeSingle(),
  sb.from('nexty_wallets').select('*').eq('user_id',user.id).maybeSingle(),
  sb.from('nexty_packages').select('*').eq('is_active',true).order('price_idr'),
