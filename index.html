@@ -87,6 +87,9 @@
 import { Capacitor } from 'https://esm.sh/@capacitor/core@7.4.3';
 import { AdMob } from 'https://esm.sh/@capacitor-community/admob@7.2.0?external=@capacitor/core';
 const TEST_REWARDED_AD_UNIT_ID='ca-app-pub-3940256099942544/5224354917';
+const PRODUCTION_REWARDED_AD_UNIT_ID='ca-app-pub-7822338306225083/4579598084';
+// Keep production disabled until the AdMob SSV test callback is confirmed in the publisher dashboard.
+const REWARDED_ADS_MODE='test';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SUPABASE_URL='https://osdudsxjzcrgopaslhcz.supabase.co';
 // Isi URL penyedia iklan di sini setelah integrasi iklan resmi tersedia.
@@ -192,17 +195,46 @@ $('main').innerHTML=h;
 $('main').querySelectorAll('[data-equip-skin]').forEach(b=>b.onclick=async()=>{b.disabled=true;const {error}=await sb.rpc('nexty_equip_pickaxe',{p_inventory_id:b.dataset.equipSkin});if(error)toast('Gagal memakai pickaxe: '+error.message);else toast('Pickaxe berhasil dipakai.');await loadPage()});
 const claim=async()=>{const {data,error}=await sb.rpc('nexty_claim_mining');if(error)toast(error.message);else toast(`Mining: +${fmt(data.gold_awarded)} Gold virtual`);await loadPage()};
 if($('claimBtn'))$('claimBtn').onclick=claim;if($('claimOrb'))$('claimOrb').onclick=claim;
+async function waitForVerifiedAdReward(startedAt){
+ const since=new Date(startedAt-10000).toISOString();
+ for(let attempt=0;attempt<30;attempt++){
+  const [gold,skin]=await Promise.all([
+   sb.from('nexty_gold_ledger').select('delta_gold,created_at').eq('user_id',user.id).eq('event_type','rewarded_ad').gte('created_at',since).order('created_at',{ascending:false}).limit(1).maybeSingle(),
+   sb.from('nexty_pickaxe_inventory').select('id,acquired_at,expires_at,nexty_pickaxe_skins(name,tier)').eq('user_id',user.id).eq('source','rewarded_ad').gte('acquired_at',since).order('acquired_at',{ascending:false}).limit(1).maybeSingle()
+  ]);
+  if(gold.error)throw gold.error;if(skin.error)throw skin.error;
+  if(gold.data&&skin.data)return {gold:gold.data,skin:skin.data};
+  await new Promise(resolve=>setTimeout(resolve,2000));
+ }
+ return null;
+}
 if($('watchRewardAdBtn'))$('watchRewardAdBtn').onclick=async()=>{
  const btn=$('watchRewardAdBtn');
- if(!Capacitor.isNativePlatform())return toast('Buka APK NEXTY MINE di Android untuk menguji iklan.');
- btn.disabled=true;btn.textContent='Memuat iklan tes...';
+ if(!Capacitor.isNativePlatform())return toast('Buka APK NEXTY MINE di Android untuk menonton iklan.');
+ if(!user?.id)return toast('Silakan masuk ke akun terlebih dahulu.');
+ btn.disabled=true;
+ const production=REWARDED_ADS_MODE==='production';
+ const startedAt=Date.now();
+ btn.textContent=production?'Memuat iklan...':'Memuat iklan tes...';
  try{
   await AdMob.initialize();
-  await AdMob.prepareRewardVideoAd({adId:TEST_REWARDED_AD_UNIT_ID,isTesting:true,ssv:{customData:user.id}});
+  await AdMob.prepareRewardVideoAd(production
+   ?{adId:PRODUCTION_REWARDED_AD_UNIT_ID,ssv:{userId:user.id,customData:'nexty_pickaxe_reward_v1'}}
+   :{adId:TEST_REWARDED_AD_UNIT_ID,isTesting:true});
   await AdMob.showRewardVideoAd();
-  toast('Iklan tes selesai. Mode tes tidak menambahkan Gold.');
- }catch(e){toast('Iklan tes belum berhasil: '+(e?.message||e));}
- finally{btn.disabled=false;btn.textContent='▶ Tonton Iklan Tes';}
+  if(!production){toast('Iklan tes berhasil. Iklan tes tidak memberikan Gold atau skin.');return;}
+  btn.textContent='Menunggu verifikasi hadiah...';
+  const verified=await waitForVerifiedAdReward(startedAt);
+  if(!verified){
+   toast('Iklan selesai, tetapi callback hadiah belum terkonfirmasi. Jangan menonton ulang dulu; periksa Koleksi Pickaxe beberapa saat lagi.');
+  }else{
+   const skin=verified.skin.nexty_pickaxe_skins;
+   const expiry=verified.skin.expires_at?new Date(verified.skin.expires_at).toLocaleDateString('id-ID'):'Permanen';
+   toast('Hadiah terverifikasi: +'+fmt(verified.gold.delta_gold)+' Gold dan '+(skin?.name||'1 Pickaxe')+' ('+expiry+').');
+  }
+  await loadPage();
+ }catch(e){toast('Iklan atau verifikasi hadiah gagal: '+(e?.message||e));}
+ finally{btn.disabled=false;btn.textContent=production?'▶ Tonton Iklan':'▶ Tonton Iklan Tes';}
 };
 
 if($('goldAmount')){const amount=$('goldAmount'),out=$('goldPoints'),btn=$('goldRequestBtn');const calc=()=>{const raw=Number(amount.value||0),balNow=Number(playerData.wallet?.gold_balance||0),n=Math.max(0,Math.min(raw,balNow)),idr=Math.floor(n*1000/GOLD_RP_RATE);out.textContent=fmt(idr)+' poin';btn.disabled=!Number.isSafeInteger(raw)||raw<MIN_GOLD_FOR_SIMULATED_REQUEST||raw>balNow||idr<MIN_SIMULATED_IDR;};amount.addEventListener('input',calc);calc();if(btn)btn.onclick=async()=>{const n=Number(amount.value),idr=Math.floor(n*1000/GOLD_RP_RATE);if(!Number.isSafeInteger(n)||n<MIN_GOLD_FOR_SIMULATED_REQUEST||idr<MIN_SIMULATED_IDR||n>Number(playerData.wallet?.gold_balance||0))return toast('Minimal simulasi 50.000 poin dan saldo Gold harus cukup.');if(!confirm('Ajukan simulasi '+fmt(n)+' Gold dengan estimasi '+fmt(idr)+' poin? Ini hanya catatan poin dalam game.'))return;btn.disabled=true;const {data,error}=await sb.rpc('nexty_request_gold_exchange',{p_gold_amount:n});if(error){toast('Gagal mengajukan: '+error.message);btn.disabled=false;calc();return}toast('Permintaan simulasi tersimpan. ID: '+data.request_id);await loadPage()}}
