@@ -107,7 +107,7 @@ sb.auth.onAuthStateChange((_event,session)=>{if(session&&(!user||user.id!==sessi
 function buildNav(){const items=role==='admin'?[['dashboard','Dashboard'],['players','Pemain'],['packages','Paket'],['payments','Pembayaran'],['gold-exchange','Permintaan Tukar Gold'],['mining','Aktivitas Mining'],['ledger','Ledger Gold'],['audit','Audit Log']]:[['home','Beranda'],['mine','Mining'],['bonus','Bonus Gold'],['packages','Paket'],['skins','Skin & Pickaxe'],['wallet','Saldo & Riwayat'],['goldrp','Gold Exchange'],['profile','Profil']];$('nav').innerHTML=items.map(([id,label])=>`<button data-page="${id}" class="${page===id?'active':''}">${label}</button>`).join('');$('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>{page=b.dataset.page;loadPage()})}
 async function loadPage(){buildNav();$('main').innerHTML='<div class="card empty">Memuat data…</div>';if(role==='admin'){await loadAdmin();renderAdmin()}else{await loadPlayer();renderPlayer()}}
 async function loadPlayer(){
- const [profile,wallet,packages,subs,ledger,mining,payments,exchanges,pickaxes,pickaxeCatalog,pickaxeTiers]=await Promise.all([
+ const [profile,wallet,packages,subs,ledger,mining,payments,exchanges,pickaxes,pickaxeCatalog,pickaxeCatalogNext,pickaxeTiers]=await Promise.all([
  sb.from('nexty_profiles').select('*').eq('user_id',user.id).maybeSingle(),
  sb.from('nexty_wallets').select('*').eq('user_id',user.id).maybeSingle(),
  sb.from('nexty_packages').select('*').eq('is_active',true).order('price_idr'),
@@ -117,11 +117,12 @@ async function loadPlayer(){
  sb.from('nexty_payment_orders').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(20),
  sb.from('nexty_gold_exchange_requests').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(30),
  sb.from('nexty_pickaxe_inventory').select('id,user_id,skin_code,source,acquired_at,expires_at,is_equipped,nexty_pickaxe_skins(code,name,tier,color_hex,design_variant)').eq('user_id',user.id).order('acquired_at',{ascending:false}),
- sb.from('nexty_pickaxe_skins').select('code,name,tier,color_hex,design_variant').eq('is_active',true).order('tier').order('design_variant'),
+ sb.from('nexty_pickaxe_skins').select('code,name,tier,color_hex,design_variant').eq('is_active',true).eq('is_rewardable',true).order('tier').order('design_variant').range(0,999),
+ sb.from('nexty_pickaxe_skins').select('code,name,tier,color_hex,design_variant').eq('is_active',true).eq('is_rewardable',true).order('tier').order('design_variant').range(1000,1999),
  sb.from('nexty_pickaxe_tiers').select('*').order('sort_order')
  ]);
- const errors=[profile,wallet,packages,subs,ledger,mining,payments,pickaxes,pickaxeCatalog,pickaxeTiers].filter(x=>x.error);if(errors.length)toast('Sebagian data gagal dimuat: '+errors[0].error.message);
- playerData={profile:profile.data,wallet:wallet.data,packages:packages.data||[],subs:subs.data||[],ledger:ledger.data||[],mining:mining.data,payments:payments.data||[],exchanges:exchanges.data||[],pickaxes:pickaxes.data||[],pickaxeCatalog:pickaxeCatalog.data||[],pickaxeTiers:pickaxeTiers.data||[]};
+ const errors=[profile,wallet,packages,subs,ledger,mining,payments,pickaxes,pickaxeCatalog,pickaxeCatalogNext,pickaxeTiers].filter(x=>x.error);if(errors.length)toast('Sebagian data gagal dimuat: '+errors[0].error.message);
+ playerData={profile:profile.data,wallet:wallet.data,packages:packages.data||[],subs:subs.data||[],ledger:ledger.data||[],mining:mining.data,payments:payments.data||[],exchanges:exchanges.data||[],pickaxes:pickaxes.data||[],pickaxeCatalog:[...(pickaxeCatalog.data||[]),...(pickaxeCatalogNext.data||[])],pickaxeTiers:pickaxeTiers.data||[]};
 }
 async function loadAdmin(){const {data,error}=await sb.functions.invoke('nexty-admin-overview');if(error){adminData={error:error.message};return}adminData=data;const q=await sb.from('nexty_gold_exchange_requests').select('*').order('created_at',{ascending:false}).limit(200);if(q.error){adminData.gold_exchange_error=q.error.message;adminData.gold_exchange_requests=[]}else adminData.gold_exchange_requests=q.data||[]}
 const activeSub=()=>playerData.subs.find(s=>s.status==='active'&&s.ends_at&&new Date(s.ends_at)>new Date());
